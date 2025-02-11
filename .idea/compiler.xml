@@ -11,11 +11,9 @@
         <module name="microservice-student" />
         <module name="microservice-course" />
         <module name="microservice-eureka" />
+        <module name="microservice-config" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="microservice-config" target="17" />
-    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">

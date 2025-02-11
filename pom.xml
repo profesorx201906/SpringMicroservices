@@ -20,6 +20,7 @@
         <module>microservice-student</module>
         <module>microservice-course</module>
         <module>microservice-gateway</module>
+        <module>microservice-config</module>
     </modules>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
