@@ -17,6 +17,7 @@
     <packaging>pom</packaging>
     <modules>
         <module>microservice-eureka</module>
+        <module>microservice-student</module>
     </modules>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
