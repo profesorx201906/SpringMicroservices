@@ -8,12 +8,12 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="microservice-student" />
+        <module name="microservice-course" />
         <module name="microservice-eureka" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="microservice-config" target="17" />
-      <module name="microservice-course" target="17" />
       <module name="microservice-gateway" target="17" />
     </bytecodeTargetLevel>
   </component>
