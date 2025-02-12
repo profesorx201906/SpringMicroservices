@@ -28,7 +28,7 @@ public class JwtAuthenticationFilter implements GatewayFilter {
   public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
     ServerHttpRequest request = exchange.getRequest();
 
-    final List<String> apiEndpoints = List.of("/register", "/login");
+    final List<String> apiEndpoints = List.of("/auth/register", "/auth/login");
 
     // Permitir cualquier subruta bajo /api/student/**
     Predicate<ServerHttpRequest> isApiSecured = r ->
@@ -37,25 +37,40 @@ public class JwtAuthenticationFilter implements GatewayFilter {
 
     if (isApiSecured.test(request)) {
       if (!request.getHeaders().containsKey("Authorization")) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.UNAUTHORIZED);
-        return response.setComplete();
+        return unauthorizedResponse(exchange);
       }
 
-      final String token = request.getHeaders().getOrEmpty("Authorization").get(0);
+      // Obtener el token y eliminar el prefijo "Bearer " si está presente
+      String authHeader = request.getHeaders().getOrEmpty("Authorization").get(0);
+      String token = authHeader.startsWith("Bearer ") ? authHeader.substring(7) : authHeader;
 
       try {
         jwtUtil.validateToken(token);
-      } catch (JwtTokenMalformedException | JwtTokenMissingException e) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.BAD_REQUEST);
-        return response.setComplete();
-      }
+        Claims claims = jwtUtil.getClaims(token);
 
-      Claims claims = jwtUtil.getClaims(token);
-      exchange.getRequest().mutate().header("id", String.valueOf(claims.get("id"))).build();
+        // Extraer el ID del usuario desde `getSubject()`
+        String userId = claims.getSubject();
+
+        // Adjuntar el ID en los headers para que otros microservicios puedan usarlo
+        exchange.getRequest().mutate().header("id", userId).build();
+
+      } catch (JwtTokenMalformedException | JwtTokenMissingException e) {
+        return badRequestResponse(exchange);
+      }
     }
 
     return chain.filter(exchange);
+  }
+
+  private Mono<Void> unauthorizedResponse(ServerWebExchange exchange) {
+    ServerHttpResponse response = exchange.getResponse();
+    response.setStatusCode(HttpStatus.UNAUTHORIZED);
+    return response.setComplete();
+  }
+
+  private Mono<Void> badRequestResponse(ServerWebExchange exchange) {
+    ServerHttpResponse response = exchange.getResponse();
+    response.setStatusCode(HttpStatus.BAD_REQUEST);
+    return response.setComplete();
   }
 }

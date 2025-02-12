@@ -1,8 +1,9 @@
-package com.microservice.gateway.util;
+package com.microservice.auth.util;
 
-import com.microservice.gateway.exception.JwtTokenMalformedException;
-import com.microservice.gateway.exception.JwtTokenMissingException;
+import com.microservice.auth.exception.JwtTokenMalformedException;
+import com.microservice.auth.exception.JwtTokenMissingException;
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -10,7 +11,6 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.util.Base64;
 import java.util.Date;
-
 @Component
 public class JwtUtil {
 
@@ -44,21 +44,5 @@ public class JwtUtil {
             .build()
             .parseClaimsJws(token)
             .getBody();
-  }
-
-  public void validateToken(final String token) throws JwtTokenMalformedException, JwtTokenMissingException {
-    try {
-      Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token);
-    } catch (SignatureException ex) {
-      throw new JwtTokenMalformedException("Invalid JWT signature");
-    } catch (MalformedJwtException ex) {
-      throw new JwtTokenMalformedException("Invalid JWT token");
-    } catch (ExpiredJwtException ex) {
-      throw new JwtTokenMalformedException("Expired JWT token");
-    } catch (UnsupportedJwtException ex) {
-      throw new JwtTokenMalformedException("Unsupported JWT token");
-    } catch (IllegalArgumentException ex) {
-      throw new JwtTokenMissingException("JWT claims string is empty.");
-    }
   }
 }
