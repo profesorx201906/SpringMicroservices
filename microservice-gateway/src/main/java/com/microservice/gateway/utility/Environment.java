@@ -1,4 +1,4 @@
-package com.microservice.auth.entities.utility;
+package com.microservice.gateway.utility;
 
 public class Environment {
   public static final int JWT_EXPIRATION_TIME = 86400000;

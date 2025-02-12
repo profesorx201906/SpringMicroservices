@@ -2,53 +2,29 @@ package com.microservice.gateway.util;
 
 import com.microservice.gateway.exception.JwtTokenMalformedException;
 import com.microservice.gateway.exception.JwtTokenMissingException;
+import com.microservice.gateway.utility.Environment;
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.security.Key;
 import java.util.Base64;
 import java.util.Date;
+import java.util.function.Function;
 
 @Component
 public class JwtUtil {
 
-  private final SecretKey secretKey;
 
-  @Value("${jwt.token.validity}")
-  private long tokenValidity;
+  private String jwtSecret = Environment.SECRET_KEY;
 
-  public JwtUtil(@Value("${jwt.secret}") String jwtSecret) {
-    byte[] decodedKey = Base64.getDecoder().decode(jwtSecret);
-    this.secretKey = Keys.hmacShaKeyFor(decodedKey);
-  }
-
-  public String generateToken(String id) {
-    Claims claims = Jwts.claims().setSubject(id);
-    long nowMillis = System.currentTimeMillis();
-    long expMillis = nowMillis + tokenValidity;
-    Date exp = new Date(expMillis);
-
-    return Jwts.builder()
-            .setClaims(claims)
-            .setIssuedAt(new Date(nowMillis))
-            .setExpiration(exp)
-            .signWith(secretKey, SignatureAlgorithm.HS512)
-            .compact();
-  }
-
-  public Claims getClaims(final String token) {
-    return Jwts.parserBuilder()
-            .setSigningKey(secretKey)
-            .build()
-            .parseClaimsJws(token)
-            .getBody();
-  }
-
+ 
   public void validateToken(final String token) throws JwtTokenMalformedException, JwtTokenMissingException {
     try {
-      Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token);
+      Jwts.parser().verifyWith((SecretKey) getKey()).build().parseSignedClaims(token).getPayload();
     } catch (SignatureException ex) {
       throw new JwtTokenMalformedException("Invalid JWT signature");
     } catch (MalformedJwtException ex) {
@@ -60,5 +36,28 @@ public class JwtUtil {
     } catch (IllegalArgumentException ex) {
       throw new JwtTokenMissingException("JWT claims string is empty.");
     }
+  }
+
+  public <T> T getClaims(String token, Function<Claims, T> claimsResolver) {
+    return claimsResolver.apply(Jwts.parser()
+            .verifyWith((SecretKey) getKey())
+            .build()
+            .parseSignedClaims(token)
+            .getPayload());
+  }
+  public Claims getAllClaims(String token) { // Nuevo método para obtener todos los Claims
+    try {
+      return Jwts.parser()
+              .verifyWith((SecretKey) getKey())
+              .build()
+              .parseSignedClaims(token)
+              .getPayload();
+    } catch (ExpiredJwtException | MalformedJwtException | UnsupportedJwtException | IllegalArgumentException | SignatureException ex) {
+      throw new RuntimeException("Invalid JWT token.");
+    }
+  }
+  public Key getKey() {
+    byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
+    return Keys.hmacShaKeyFor(keyBytes);
   }
 }

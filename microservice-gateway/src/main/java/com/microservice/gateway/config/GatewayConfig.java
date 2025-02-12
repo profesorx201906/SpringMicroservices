@@ -17,16 +17,13 @@ public class GatewayConfig {
   public RouteLocator routes(RouteLocatorBuilder builder) {
     return builder.routes()
             // Rutas públicas (sin filtro)
-            .route("msvc-auth", r -> r.path("/auth/**").uri("lb://msvc-auth"))
+            .route("msvc-auth", r -> r.path("/api/auth/**").uri("lb://msvc-auth"))
 
             // Rutas protegidas (con filtro)
             .route("alert", r -> r.path("/alert/**").filters(f -> f.filter(filter)).uri("lb://alert"))
             .route("echo", r -> r.path("/echo/**").filters(f -> f.filter(filter)).uri("lb://echo"))
             .route("msvc-course", r -> r.path("/api/course/**").filters(f -> f.filter(filter)).uri("lb://msvc-course"))
-
-            // Permitir el acceso a /api/student/** sin filtro (ya lo gestiona el filtro en JwtAuthenticationFilter)
-            .route("msvc-student", r -> r.path("/api/student/**").uri("lb://msvc-student"))
-
+            .route("msvc-student", r -> r.path("/api/student/**").filters(f -> f.filter(filter)).uri("lb://msvc-student"))
             .route("hello", r -> r.path("/hello/**").filters(f -> f.filter(filter)).uri("lb://hello"))
             .build();
   }

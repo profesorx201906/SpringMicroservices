@@ -1,8 +1,5 @@
 package com.microservice.gateway.filter;
 
-import java.util.List;
-import java.util.function.Predicate;
-
 import com.microservice.gateway.exception.JwtTokenMalformedException;
 import com.microservice.gateway.exception.JwtTokenMissingException;
 import com.microservice.gateway.util.JwtUtil;
@@ -14,9 +11,11 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
-
 import io.jsonwebtoken.Claims;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.function.Predicate;
 
 @Component
 public class JwtAuthenticationFilter implements GatewayFilter {
@@ -28,31 +27,31 @@ public class JwtAuthenticationFilter implements GatewayFilter {
   public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
     ServerHttpRequest request = exchange.getRequest();
 
-    final List<String> apiEndpoints = List.of("/auth/register", "/auth/login");
+    final List<String> openApiEndpoints = List.of("/api/auth/signIn", "/api/auth/signUp");
+    final List<String> studentApiPrefix = List.of("/api/student/");
 
-    // Permitir cualquier subruta bajo /api/student/**
     Predicate<ServerHttpRequest> isApiSecured = r ->
-            apiEndpoints.stream().noneMatch(uri -> r.getURI().getPath().startsWith(uri)) &&
-                    !r.getURI().getPath().startsWith("/api/student/");
+            openApiEndpoints.stream().noneMatch(uri -> r.getURI().getPath().equals(uri)) &&
+                    studentApiPrefix.stream().noneMatch(prefix -> r.getURI().getPath().startsWith(prefix));
 
     if (isApiSecured.test(request)) {
       if (!request.getHeaders().containsKey("Authorization")) {
         return unauthorizedResponse(exchange);
       }
 
-      // Obtener el token y eliminar el prefijo "Bearer " si está presente
       String authHeader = request.getHeaders().getOrEmpty("Authorization").get(0);
       String token = authHeader.startsWith("Bearer ") ? authHeader.substring(7) : authHeader;
 
       try {
         jwtUtil.validateToken(token);
-        Claims claims = jwtUtil.getClaims(token);
+        Claims claims = jwtUtil.getAllClaims(token); // Usamos el nuevo método getAllClaims
 
-        // Extraer el ID del usuario desde `getSubject()`
-        String userId = claims.getSubject();
-
-        // Adjuntar el ID en los headers para que otros microservicios puedan usarlo
-        exchange.getRequest().mutate().header("id", userId).build();
+        if (claims != null) {
+          String userId = claims.getSubject();
+          exchange.getRequest().mutate().header("id", userId).build();
+        } else {
+          return badRequestResponse(exchange);
+        }
 
       } catch (JwtTokenMalformedException | JwtTokenMissingException e) {
         return badRequestResponse(exchange);
