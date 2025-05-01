@@ -14,6 +14,8 @@ import org.springframework.web.server.ServerWebExchange;
 import io.jsonwebtoken.Claims;
 import reactor.core.publisher.Mono;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -29,12 +31,13 @@ public class JwtAuthenticationFilter implements GatewayFilter {
 
     final List<String> openApiEndpoints = List.of("/api/auth/signIn", "/api/auth/signUp");
     final List<String> studentApiPrefix = List.of("/api/student/");
+    final String courseEndpoint = "/api/course/"; // Endpoint a proteger
 
     Predicate<ServerHttpRequest> isApiSecured = r ->
             openApiEndpoints.stream().noneMatch(uri -> r.getURI().getPath().equals(uri)) &&
                     studentApiPrefix.stream().noneMatch(prefix -> r.getURI().getPath().startsWith(prefix));
 
-    if (isApiSecured.test(request)) {
+    if (isApiSecured.test(request) || request.getURI().getPath().startsWith(courseEndpoint)) { // Condición adicional para /api/course/
       if (!request.getHeaders().containsKey("Authorization")) {
         return unauthorizedResponse(exchange);
       }
@@ -44,11 +47,26 @@ public class JwtAuthenticationFilter implements GatewayFilter {
 
       try {
         jwtUtil.validateToken(token);
-        Claims claims = jwtUtil.getAllClaims(token); // Usamos el nuevo método getAllClaims
+        Claims claims = jwtUtil.getAllClaims(token);
 
         if (claims != null) {
           String userId = claims.getSubject();
-          exchange.getRequest().mutate().header("id", userId).build();
+          //String roles = (String) claims.get("roles"); // Obtén los roles del token como String
+
+          ArrayList<String> roles = (ArrayList<String>) claims.get("roles"); // Obtén los roles del token
+
+          if (roles != null && !roles.isEmpty()) {
+            String firstRole = roles.get(0); // Obtén el primer rol
+
+            if (request.getURI().getPath().startsWith(courseEndpoint)) {
+              if(firstRole.equals("ROLE_ADMIN")) {
+                return forbiddenResponse(exchange);
+              }// 403 Forbidden si no es ADMIN
+            }
+          } else {
+            return forbiddenResponse(exchange); // 403 Forbidden si no hay roles
+          }
+
         } else {
           return badRequestResponse(exchange);
         }
@@ -70,6 +88,12 @@ public class JwtAuthenticationFilter implements GatewayFilter {
   private Mono<Void> badRequestResponse(ServerWebExchange exchange) {
     ServerHttpResponse response = exchange.getResponse();
     response.setStatusCode(HttpStatus.BAD_REQUEST);
+    return response.setComplete();
+  }
+
+  private Mono<Void> forbiddenResponse(ServerWebExchange exchange) {
+    ServerHttpResponse response = exchange.getResponse();
+    response.setStatusCode(HttpStatus.FORBIDDEN);
     return response.setComplete();
   }
 }
